@@ -1,0 +1,11 @@
+# Irakaslearen gidak: ez dira GitHubera igotzen
+*-irakaslearen-gida.md
+IRAKASLEAREN-GIDA.md
+
+# Irakaslearen entrenamendu-kopiak (beraien soluzioak izan ditzakete)
+*entren*/
+
+# Maven eta IntelliJ
+target/
+.idea/
+*.iml
