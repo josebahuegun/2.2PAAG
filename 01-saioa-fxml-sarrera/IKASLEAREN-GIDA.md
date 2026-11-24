@@ -23,18 +23,31 @@ Bi xehetasun:
 - **Balio konplexuak** (adibidez, `Insets` bat) etiketa minuskula batekin idazten dira: `<padding><Insets top="20" .../></padding>`. Hori `root.setPadding(new Insets(...))` da.
 - **Inportazioak:** erabilitako klase bakoitzak bere inportazioa behar du: `<?import javafx.scene.control.Button?>`.
 
-Kontuz `GridPane`-rekin: Javako `add(nodoa, zutabea, errenkada)` metodoan zutabea lehenik doa. FXMLan `GridPane.columnIndex` eta `GridPane.rowIndex` dira.
+Kontuz `GridPane`-rekin: Javako `add(nodoa, zutabea, errenkada)` metodoan zutabea lehenik doa. FXMLan `GridPane.columnIndex` eta `GridPane.rowIndex` dira. Edukiontzi bakoitzak bere atributu estatikoak ditu: ikus 8. atala.
 
 ## 3. View/Controller-etik FXMLra
 
 | | Orain arte (Java hutsa) | FXMLrekin |
 |---|---|---|
 | Bista | Java klase bat | `.fxml` fitxategi bat |
-| Nork sortzen du kontroladorea | Zuek: `new Controller(...)` | `FXMLLoader`-ek, `fx:controller` irakurrita |
-| Nola lortzen ditu kontroladoreak nodoak | Bistaren getter-ekin | **Injekzioa:** `FXMLLoader`-ek eremuak betetzen ditu (`@FXML`) |
-| Nola lotzen dira gertaerak | Kontroladoreak: `setOnAction(...)` | FXMLak: `onAction="#gorde"` |
+| Nork sortzen du kontroladorea | SceneManager-ak: `new LoginController(...)` | `FXMLLoader`-ek, `fx:controller` irakurrita |
+| Kontroladoreak zer jasotzen du | **Balioak**: bistak testu-eremuak irakurri eta kontroladorearen metodo bati pasatzen dizkio | **Nodoak**: `FXMLLoader`-ek `@FXML` eremuak betetzen ditu (injekzioa), eta kontroladoreak irakurtzen ditu balioak |
+| Nola lotzen dira gertaerak | Bistak: `setOnAction(...)`, eta kontroladorearen metodo bati deitzen dio | FXMLak: `onAction="#gorde"`, kontroladorearen metodo bati |
 
 Bistak (FXMLak) badaki zein den bere kontroladorea. Kontroladoreak ez du bista sortzen: nodoak jasotzen ditu.
+
+**Kontuz: "kontroladorea" ez da gauza bera bi diseinuetan.**
+- *Lehen*, kontroladoreak **balioak** jasotzen zituen (`String`, `int`...), eta ez zekien interfazea nolakoa zen. Logika eta datuak zituen: MVCko kontroladorea. Horregatik zen errazagoa probatzeko, interfazerik gabe.
+- *FXMLrekin*, kontroladoreak **nodoak** jasotzen ditu (`TextField`, `Label`...), eta bistaren parte bat bihurtzen da: lehen bistak egiten zuena egiten du (botoiak entzun, testu-eremuak irakurri), eta logika ere bai.
+
+Bereizketa berreskuratzeko, FXMLko kontroladoreak nodoak irakurri eta **balioak** pasatzen dizkio logika-geruza bati (DAOa, zerbitzu bat), lehen bezala:
+
+```java
+@FXML
+private void gorde() {
+    liburuDAO.gorde(izenburuaField.getText(), egileaField.getText());   // balioak, ez nodoak
+}
+```
 
 ## 4. Zer egiten du `FXMLLoader.load()` metodoak
 
@@ -64,9 +77,18 @@ FXMLLoader loader = new FXMLLoader(App.class.getResource("liburu-form.fxml"));
 Parent root = loader.load();
 ```
 
-- **Bide erlatiboa** (`/` gabe): `App` klasearen paketearekiko bilatzen da → `src/main/resources/eus/liburutegia/liburu-form.fxml`.
-- **Bide absolutua** (`/` hasieran): `resources` karpetaren errotik → `"/eus/liburutegia/liburu-form.fxml"`.
-- Mavenen: `.java` fitxategiak `src/main/java`-n, eta `.fxml` fitxategiak `src/main/resources`-en, **pakete-egitura berarekin**.
+**Non bilatzen du Javak fitxategia.** Konpilatzean, Mavenek `src/main/java`-ko klaseak eta `src/main/resources`-eko fitxategiak karpeta berean elkartzen ditu: `target/classes`. Han, `App.class` eta `liburu-form.fxml` karpeta berean geratzen dira, biak `eus/liburutegia/` bidean daudelako. Horregatik errepikatzen da pakete-egitura `resources`-en.
+
+| Kodea | Bilatzen duen fitxategia (`target/classes`-en) |
+|---|---|
+| `App.class.getResource("liburu-form.fxml")` | `eus/liburutegia/liburu-form.fxml` (erlatiboa: `App`-en paketean) |
+| `App.class.getResource("bistak/login.fxml")` | `eus/liburutegia/bistak/login.fxml` (erlatiboa, azpikarpeta batekin) |
+| `App.class.getResource("/eus/liburutegia/liburu-form.fxml")` | `eus/liburutegia/liburu-form.fxml` (absolutua: errotik) |
+| `LiburuFormController.class.getResource("liburu-form.fxml")` | `eus/liburutegia/controller/liburu-form.fxml` → **ez dago**: `null` |
+
+- **Erlatiboa** (`/` gabe): erabilitako **klasearen paketetik** abiatzen da. Klasea aldatuz gero, bidea ere aldatzen da.
+- **Absolutua** (`/` hasieran): beti errotik. Ez dio axola zein klase erabiltzen den.
+- Fitxategia aurkitzen ez bada, `getResource()`-ek `null` itzultzen du, eta errorea geroago agertzen da, `load()` deitzean: `Location is not set`.
 
 ## 7. `module-info.java`: `opens`
 
@@ -78,7 +100,91 @@ opens eus.liburutegia.controller to javafx.fxml;
 
 Lerro hori paketea sortu ondoren gehitu: pakete hutsa irekitzeak konpilazio-errorea ematen du.
 
-## 8. Ohiko akatsak
+## 8. Layout-ak FXMLan (cheatsheet)
+
+**Bi arau orokor:**
+- Edukiontzi guztiek onartzen dute `padding` (barruko marjina): `<padding><Insets top="10" right="10" bottom="10" left="10"/></padding>`.
+- `Edukiontzia.propietatea` atributuak (adibidez, `GridPane.rowIndex`) **umean** idazten dira, eta gurasoak bakarrik erabiltzen ditu. Gurasoa beste edukiontzi bat bada, ez du errorerik ematen, baina ez du ezer egiten.
+
+### GridPane: errenkadak eta zutabeak
+
+Formularioetarako. Umeak `children`-en doaz zuzenean, eta bakoitzak bere gelaxka adierazten du.
+
+| Non | Atributua | Zertarako |
+|---|---|---|
+| GridPane-n | `hgap`, `vgap` | Zutabeen eta errenkaden arteko tartea |
+| Umean | `GridPane.rowIndex`, `GridPane.columnIndex` | Gelaxka (0tik hasita; ez badago, 0) |
+| Umean | `GridPane.columnSpan`, `GridPane.rowSpan` | Zenbat gelaxka hartzen dituen |
+| Umean | `GridPane.halignment` (`LEFT`, `CENTER`, `RIGHT`) | Lerrokatzea gelaxkan |
+
+```xml
+<GridPane hgap="10" vgap="10">
+    <Label text="Izenburua:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+    <TextField GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+    <Label fx:id="mezuaLabel" GridPane.rowIndex="1" GridPane.columnIndex="0" GridPane.columnSpan="2"/>
+</GridPane>
+```
+
+### BorderPane: bost gune
+
+Leihoaren egitura orokorrerako. Posizioa **ez da atributu bat**: umea gunearen elementuaren barruan sartzen da (`<top>`, `<bottom>`, `<left>`, `<right>`, `<center>`, minuskulaz). Java: `setTop(nodoa)`, `setCenter(nodoa)`...
+
+**Gune bakoitzak nodo bakarra** hartzen du. Gauza bat baino gehiago jartzeko, bildu HBox, VBox edo GridPane batean.
+
+| Non | Atributua | Zertarako |
+|---|---|---|
+| Umean | `BorderPane.margin` | Marjina bere gunean |
+| Umean | `BorderPane.alignment` (`CENTER`, `TOP_LEFT`...) | Lerrokatzea bere gunean |
+
+```xml
+<BorderPane>
+    <top>
+        <Label text="Liburuak bilatu">
+            <BorderPane.margin><Insets bottom="15"/></BorderPane.margin>
+        </Label>
+    </top>
+    <center>
+        <GridPane> ... </GridPane>
+    </center>
+    <bottom>
+        <HBox> ... </HBox>
+    </bottom>
+</BorderPane>
+```
+
+### HBox eta VBox: lerro batean
+
+HBox: ezkerretik eskuinera. VBox: goitik behera. Umeak `children`-en doaz zuzenean, ordenan.
+
+| Non | Atributua | Zertarako |
+|---|---|---|
+| HBox/VBox-en | `spacing` | Umeen arteko tartea |
+| HBox/VBox-en | `alignment` (`CENTER`, `CENTER_LEFT`, `CENTER_RIGHT`...) | Umeen lerrokatzea |
+| Umean | `HBox.hgrow` / `VBox.vgrow` (`ALWAYS`, `SOMETIMES`, `NEVER`) | Hazi egin daitekeen, lekua betetzeko |
+| Umean | `HBox.margin` / `VBox.margin` | Umearen marjina |
+
+```xml
+<HBox spacing="10" alignment="CENTER_RIGHT">
+    <TextField HBox.hgrow="ALWAYS"/>   <!-- gainerako lekua betetzen du -->
+    <Button text="Bilatu"/>
+</HBox>
+```
+
+### Konbinatzea
+
+Leiho erreal bat edukiontziak bata bestearen barruan jarriz egiten da. Adibidez:
+
+```
+BorderPane
+├── top     → Label (izenburua)
+├── center  → GridPane (Formularioa)
+│               └── HBox (Label, TextField), HBox (RadioButton-ak)...
+└── bottom  → VBox
+                ├── HBox (botoiak, eskuinean)
+                └── Label (mezua)
+```
+
+## 9. Ohiko akatsak
 
 | Sintoma | Kausa |
 |---|---|
